@@ -1,0 +1,231 @@
+// Part A: Dependency Injection in Spring (Java-Based Configuration.
+//  Course class.
+
+public class Course {
+    public String getCourseName() {
+        return "Advanced Java";
+    }
+}
+//- Student class.
+public class Student {
+    private Course course;
+
+    public Student(Course course) {
+        this.course = course;
+    }
+
+    public void displayCourse() {
+        System.out.println("Enrolled in: " + course.getCourseName());
+    }
+}
+//Java-based Configuration.
+@Configuration
+public class AppConfig {
+    @Bean
+    public Course course() {
+        return new Course();
+    }
+
+    @Bean
+    public Student student() {
+        return new Student(course());
+    }
+}
+//- Main Class
+public class Main {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+        Student student = context.getBean(Student.class);
+        student.displayCourse();
+        context.close();
+    }
+}
+// pom.xml file.
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.krishna</groupId>
+    <artifactId>SpringDIExperiment</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>24</maven.compiler.release>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>6.1.5</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <release>24</release>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+
+
+
+
+
+//Part B: Hibernate CRUD for Student Entity.
+
+//- Student Entity.
+@Entity
+@Table(name = "students")
+public class Student {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "course")
+    private String course;
+    
+    // Getters and setters
+}
+//- hibernate.cfg.xml.
+<hibernate-configuration>
+  <session-factory>
+    <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+    <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/yourdb</property>
+    <property name="hibernate.connection.username">root</property>
+    <property name="hibernate.connection.password">password</property>
+    <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+    <mapping class="com.example.Student"/>
+  </session-factory>
+</hibernate-configuration>
+//- CRUD Operations
+SessionFactory factory = new Configuration().configure().buildSessionFactory();
+Session session = factory.openSession();
+Transaction tx = session.beginTransaction();
+
+// Create
+Student s = new Student();
+s.setName("Krishna");
+s.setCourse("Spring Boot");
+session.save(s);
+
+// Read
+Student fetched = session.get(Student.class, 1);
+
+// Update
+fetched.setCourse("Hibernate");
+session.update(fetched);
+
+// Delete
+session.delete(fetched);
+
+tx.commit();
+session.close();
+
+
+
+
+
+
+
+//Part C: Transaction Management with Spring + Hibernate.
+
+//- Entities.
+@Entity
+public class Account {
+    @Id
+    private int id;
+    private double balance;
+}
+
+@Entity
+public class TransactionRecord {
+    @Id
+    @GeneratedValue
+    private int id;
+    private int fromAccount;
+    private int toAccount;
+    private double amount;
+}
+//- DAO Layer.
+@Repository
+public class AccountDAO {
+    @Autowired
+    private SessionFactory sessionFactory;
+
+    public Account getAccount(int id) {
+        return sessionFactory.getCurrentSession().get(Account.class, id);
+    }
+
+    public void updateAccount(Account account) {
+        sessionFactory.getCurrentSession().update(account);
+    }
+}
+//-Service Layer.
+@Service
+public class BankingService {
+    @Autowired
+    private AccountDAO accountDAO;
+
+    @Transactional
+    public void transferMoney(int fromId, int toId, double amount) {
+        Account from = accountDAO.getAccount(fromId);
+        Account to = accountDAO.getAccount(toId);
+
+        if (from.getBalance() < amount) throw new RuntimeException("Insufficient funds");
+
+        from.setBalance(from.getBalance() - amount);
+        to.setBalance(to.getBalance() + amount);
+
+        accountDAO.updateAccount(from);
+        accountDAO.updateAccount(to);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
