@@ -1,0 +1,330 @@
+//pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.studentmgmt</groupId>
+    <artifactId>OnlineStudentManagementSystem</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source> <!-- Use Java 17 for compatibility -->
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Context -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>5.3.29</version>
+        </dependency>
+
+        <!-- Spring TX -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <version>5.3.29</version>
+        </dependency>
+
+        <!-- Hibernate Core -->
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>5.6.15.Final</version>
+        </dependency>
+
+        <!-- JPA API -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>3.1.0</version>
+        </dependency>
+
+        <!-- MySQL Connector -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+        </dependency>
+
+        <!-- Logging (Optional but helpful) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.36</version>
+        </dependency>
+    </dependencies>
+</project>
+
+//AppConfig.java 
+package com.studentmgmt.config;
+
+import com.studentmgmt.dao.StudentDAOImpl;
+import com.studentmgmt.service.FeeServiceImpl;
+import org.hibernate.SessionFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public SessionFactory sessionFactory() {
+        return new org.hibernate.cfg.Configuration().configure().buildSessionFactory();
+    }
+
+    @Bean
+    public StudentDAOImpl studentDAO() {
+        return new StudentDAOImpl(sessionFactory());
+    }
+
+    @Bean
+    public FeeServiceImpl feeService() {
+        return new FeeServiceImpl(studentDAO());
+    }
+}
+//student.java 
+package com.studentmgmt.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "students")
+public class Student {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int studentId;
+
+    private String name;
+
+    @ManyToOne
+    @JoinColumn(name = "course_id")
+    private Course course;
+
+    private double balance;
+
+    // Getters and setters
+    public int getStudentId() { return studentId; }
+    public void setStudentId(int studentId) { this.studentId = studentId; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public Course getCourse() { return course; }
+    public void setCourse(Course course) { this.course = course; }
+
+    public double getBalance() { return balance; }
+    public void setBalance(double balance) { this.balance = balance; }
+}
+//course.java 
+package com.studentmgmt.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "courses")
+public class Course {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int courseId;
+
+    private String courseName;
+    private int duration;
+
+    // Getters and setters
+    public int getCourseId() { return courseId; }
+    public void setCourseId(int courseId) { this.courseId = courseId; }
+
+    public String getCourseName() { return courseName; }
+    public void setCourseName(String courseName) { this.courseName = courseName; }
+
+    public int getDuration() { return duration; }
+    public void setDuration(int duration) { this.duration = duration; }
+}
+//StudentDAO.java 
+package com.studentmgmt.dao;
+
+import com.studentmgmt.model.Student;
+import java.util.List;
+
+public interface StudentDAO {
+    void addStudent(Student student);
+    Student getStudent(int id);
+    List<Student> getAllStudents();
+    void updateStudent(Student student);
+    void deleteStudent(int id);
+}
+//studentDAOImpl.java 
+package com.studentmgmt.dao;
+
+import com.studentmgmt.model.Student;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+
+import java.util.List;
+
+public class StudentDAOImpl implements StudentDAO {
+    private SessionFactory sessionFactory;
+
+    public StudentDAOImpl(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
+
+    public void addStudent(Student student) {
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
+            session.persist(student);
+            session.getTransaction().commit();
+        }
+    }
+
+    public Student getStudent(int id) {
+        try (Session session = sessionFactory.openSession()) {
+            return session.get(Student.class, id);
+        }
+    }
+
+    public List<Student> getAllStudents() {
+        try (Session session = sessionFactory.openSession()) {
+            return session.createQuery("from Student", Student.class).list();
+        }
+    }
+
+    public void updateStudent(Student student) {
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
+            session.merge(student);
+            session.getTransaction().commit();
+        }
+    }
+
+    public void deleteStudent(int id) {
+        try (Session session = sessionFactory.openSession()) {
+            session.beginTransaction();
+            Student student = session.get(Student.class, id);
+            if (student != null) session.remove(student);
+            session.getTransaction().commit();
+        }
+    }
+}
+//feeServices.java 
+package com.studentmgmt.service;
+
+public interface FeeService {
+    void payFee(int studentId, double amount);
+    void refundFee(int studentId, double amount);
+}
+//FeeServiceImpl.java 
+package com.studentmgmt.service;
+
+import com.studentmgmt.dao.StudentDAO;
+import com.studentmgmt.model.Student;
+import org.springframework.transaction.annotation.Transactional;
+
+public class FeeServiceImpl implements FeeService {
+    private StudentDAO studentDAO;
+
+    public FeeServiceImpl(StudentDAO studentDAO) {
+        this.studentDAO = studentDAO;
+    }
+
+    @Transactional
+    public void payFee(int studentId, double amount) {
+        Student student = studentDAO.getStudent(studentId);
+        if (student != null && student.getBalance() >= amount) {
+            student.setBalance(student.getBalance() - amount);
+            studentDAO.updateStudent(student);
+        }
+    }
+
+    @Transactional
+    public void refundFee(int studentId, double amount) {
+        Student student = studentDAO.getStudent(studentId);
+        if (student != null) {
+            student.setBalance(student.getBalance() + amount);
+            studentDAO.updateStudent(student);
+        }
+    }
+}
+//MainApp.java 
+package com.studentmgmt.controller;
+
+import com.studentmgmt.model.Student;
+import com.studentmgmt.model.Course;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+
+public class MainApp{
+    public static void main(String[] args) {
+        SessionFactory factory = new org.hibernate.cfg.Configuration().configure().buildSessionFactory();
+        Session session = factory.openSession();
+        session.beginTransaction();
+
+        // ✅ Load existing course (e.g., course_id = 1)
+        Course course = session.get(Course.class, 1); // assumes course with ID 1 exists
+
+        // ✅ Create and persist student
+        Student s = new Student();
+        s.setName("Test");
+        s.setBalance(1000);
+        s.setCourse(course); // ✅ required for foreign key
+
+        session.persist(s);
+
+        session.getTransaction().commit();
+        session.close();
+        factory.close();
+    }
+}
+//hibernate.conf.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+<hibernate-configuration>
+    <session-factory>
+
+        <!-- ✅ JDBC Connection Settings -->
+        <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/studentdb</property>
+        <property name="hibernate.connection.username">root</property>
+        <property name="hibernate.connection.password">Krishn@7469</property>
+
+        <!-- ✅ Hibernate Settings -->
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+        <property name="hibernate.hbm2ddl.auto">update</property>
+        <property name="show_sql">true</property>
+
+        <!-- ✅ Entity Mappings -->
+        <mapping class="com.studentmgmt.model.Student"/>
+        <mapping class="com.studentmgmt.model.Course"/>
+        <mapping class="com.studentmgmt.model.Payment"/>
+
+    </session-factory>
+</hibernate-configuration>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
